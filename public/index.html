@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Node 2602 Exam on Authentication</title>
+<style>
+  :root { --ink:#15171B; --muted:#5E5F5C; --line:#DCDCD7; --bg:#F4F4F1; --accent:#2F6F8F;
+          --ok:#2E6B4F; --bad:#A3352F; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:32px 16px; background:var(--bg); color:var(--ink);
+         font:14px/1.6 ui-sans-serif, system-ui, -apple-system, sans-serif; }
+  .wrap { max-width:880px; margin:0 auto; }
+  h1 { font-size:22px; font-weight:600; margin:0 0 4px; }
+  p.sub { color:var(--muted); margin:0 0 24px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; }
+  h2 { font-size:14px; font-weight:600; margin:0 0 4px; }
+  .card > p.note { font-size:12px; color:var(--muted); margin:0 0 6px; }
+  label { display:block; font-size:12px; color:var(--muted); margin:12px 0 4px; font-weight:500; }
+  input { width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:7px;
+          font:inherit; background:#fff; color:var(--ink); }
+  input:focus { outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent); }
+  .hint { display:block; font-size:11.5px; color:var(--muted); margin-top:5px; line-height:1.5; }
+  .hint code { background:#F1F0EC; padding:1px 4px; border-radius:3px; font-size:11px; }
+  ul.rules { margin:5px 0 0; padding-left:0; list-style:none; font-size:11.5px; color:var(--muted); }
+  ul.rules li { padding-left:16px; position:relative; line-height:1.6; }
+  ul.rules li::before { content:"○"; position:absolute; left:0; }
+  ul.rules li.met { color:var(--ok); }
+  ul.rules li.met::before { content:"●"; }
+  button { margin-top:16px; width:100%; padding:10px; border:0; border-radius:7px;
+           background:var(--accent); color:#fff; font:inherit; font-weight:500; cursor:pointer; }
+  button.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); margin-top:8px; }
+  button:hover { opacity:.9; }
+  .row { display:flex; gap:8px; }
+  pre { background:#15171B; color:#E8E8E3; padding:14px; border-radius:10px;
+        overflow:auto; max-height:340px; font-size:12px; margin:16px 0 0; }
+  .token { font-size:11px; color:var(--muted); word-break:break-all; margin-top:12px;
+           padding-top:10px; border-top:1px solid var(--line); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Node 2602 Exam on Authentication</h1>
+  <p class="sub">A minimal front end for the endpoints. The access token is kept in memory; the refresh token lives in an httpOnly cookie.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Register</h2>
+      <p class="note">POST <code>/api/auth/register</code> — rate limited to 20 per 15 min</p>
+
+      <label for="rn">Name</label>
+      <input id="rn" value="Test User" autocomplete="name" placeholder="Your full name">
+      <span class="hint">2 to 60 characters. Leading and trailing spaces are trimmed.</span>
+
+      <label for="re">Email</label>
+      <input id="re" type="email" value="test@example.com" autocomplete="email" placeholder="you@example.com">
+      <span class="hint">Must be a valid address and not already registered. Stored lowercase — <code>You@Ex.com</code> and <code>you@ex.com</code> are the same account.</span>
+
+      <label for="rp">Password</label>
+      <input id="rp" type="password" value="Passw0rd123" autocomplete="new-password" placeholder="At least 8 characters" oninput="checkRules(this.value)">
+      <ul class="rules" id="rules">
+        <li data-rule="len">At least 8 characters</li>
+        <li data-rule="lower">One lowercase letter</li>
+        <li data-rule="upper">One uppercase letter</li>
+        <li data-rule="digit">One number</li>
+      </ul>
+      <span class="hint">Hashed with bcrypt before it is stored. It is never returned by any endpoint.</span>
+
+      <button onclick="register()">Register</button>
+    </div>
+
+    <div class="card">
+      <h2>Login</h2>
+      <p class="note">POST <code>/api/auth/login</code></p>
+
+      <label for="le">Email</label>
+      <input id="le" type="email" value="test@example.com" autocomplete="email" placeholder="you@example.com">
+      <span class="hint">An unknown email returns the same error as a wrong password, so the API cannot be used to discover who has an account.</span>
+
+      <label for="lp">Password</label>
+      <input id="lp" type="password" value="Passw0rd123" autocomplete="current-password" placeholder="Your password">
+      <span class="hint">5 wrong attempts locks the account. The lock clears after <code>LOCK_TIME_MS</code> in <code>.env</code> — set to 5 seconds here so it can be demonstrated; 15 minutes in production.</span>
+
+      <button onclick="login()">Log in</button>
+    </div>
+
+    <div class="card">
+      <h2>Session</h2>
+      <p class="note">No input needed — these use the token held in memory.</p>
+
+      <div class="row">
+        <button class="ghost" onclick="call('GET','/api/auth/me',null,true)">Get me</button>
+        <button class="ghost" onclick="call('POST','/api/auth/refresh')">Refresh</button>
+      </div>
+      <span class="hint"><b>Get me</b> sends the access token in an <code>Authorization: Bearer</code> header. <b>Refresh</b> sends no token at all — it uses the httpOnly cookie, and rotates it.</span>
+
+      <div class="row">
+        <button class="ghost" onclick="call('GET','/api/users',null,true)">List users (admin)</button>
+        <button class="ghost" onclick="logout()">Log out</button>
+      </div>
+      <span class="hint"><b>List users</b> returns 403 unless your role is <code>admin</code>. To promote yourself:<br>
+        <code>db.users.updateOne({email:"test@example.com"},{$set:{role:"admin"}})</code></span>
+
+      <div class="token" id="tok">No access token</div>
+    </div>
+
+    <div class="card">
+      <h2>OTP verification</h2>
+      <p class="note">POST <code>/api/auth/send-otp</code> then <code>/api/auth/verify-otp</code></p>
+
+      <label for="oe">Email</label>
+      <input id="oe" type="email" value="test@example.com" autocomplete="email" placeholder="you@example.com">
+      <span class="hint">Must be a registered, not-yet-verified account. Sending to an unknown email returns the same success message, so the endpoint cannot be used to find out who has signed up.</span>
+
+      <button class="ghost" onclick="sendOtp()">Send code</button>
+      <span class="hint">One code per 60 seconds. In development the code is returned in the response and printed to the server console; in production it would only be emailed.</span>
+
+      <label for="oc">6-digit code</label>
+      <input id="oc" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" autocomplete="one-time-code">
+      <span class="hint">Digits only, 4 to 8 characters. Expires 5 minutes after it is sent, and 5 wrong guesses destroy the code so a new one must be requested.</span>
+
+      <button onclick="verifyOtp()">Verify code</button>
+    </div>
+
+    <div class="card">
+      <h2>Change password</h2>
+      <p class="note">PATCH <code>/api/auth/change-password</code> — needs a valid access token</p>
+
+      <label for="cp">Current password</label>
+      <input id="cp" type="password" value="Passw0rd123" autocomplete="current-password" placeholder="Your current password">
+      <span class="hint">Checked with bcrypt before anything changes. Wrong value returns 401.</span>
+
+      <label for="np">New password</label>
+      <input id="np" type="password" value="NewPassw0rd1" autocomplete="new-password" placeholder="At least 8 characters" oninput="checkRules(this.value,'rules2')">
+      <ul class="rules" id="rules2">
+        <li data-rule="len">At least 8 characters</li>
+        <li data-rule="lower">One lowercase letter</li>
+        <li data-rule="upper">One uppercase letter</li>
+        <li data-rule="digit">One number</li>
+      </ul>
+      <span class="hint">Must differ from the current one. On success every session ends — including this one — so you will need to log in again.</span>
+
+      <button onclick="changePw()">Change</button>
+    </div>
+  </div>
+
+  <pre id="out">Responses appear here.</pre>
+</div>
+
+<script>
+let accessToken = null;
+
+function checkRules(value, id = 'rules') {
+  const tests = {
+    len: value.length >= 8,
+    lower: /[a-z]/.test(value),
+    upper: /[A-Z]/.test(value),
+    digit: /\d/.test(value),
+  };
+  document.querySelectorAll(`#${id} li`).forEach((li) => {
+    li.classList.toggle('met', tests[li.dataset.rule]);
+  });
+}
+
+function show(data) {
+  document.getElementById('out').textContent = JSON.stringify(data, null, 2);
+}
+function setToken(t) {
+  accessToken = t;
+  document.getElementById('tok').textContent = t ? 'Access token: ' + t : 'No access token';
+}
+
+async function call(method, url, body, auth) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (auth && accessToken) headers.Authorization = 'Bearer ' + accessToken;
+  try {
+    const res = await fetch(url, {
+      method,
+      headers,
+      credentials: 'include',
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const json = await res.json();
+    show({ status: res.status, ...json });
+    if (json?.data?.accessToken) setToken(json.data.accessToken);
+    return json;
+  } catch (err) {
+    show({ error: err.message });
+  }
+}
+
+const v = id => document.getElementById(id).value;
+
+function register() {
+  call('POST', '/api/auth/register', { name: v('rn'), email: v('re'), password: v('rp') });
+}
+function login() {
+  call('POST', '/api/auth/login', { email: v('le'), password: v('lp') });
+}
+async function logout() {
+  await call('POST', '/api/auth/logout');
+  setToken(null);
+}
+async function sendOtp() {
+  const json = await call('POST', '/api/auth/send-otp', { email: v('oe') });
+  // Development convenience: drop the returned code straight into the box.
+  if (json?.data?.otp) document.getElementById('oc').value = json.data.otp;
+}
+function verifyOtp() {
+  call('POST', '/api/auth/verify-otp', { email: v('oe'), otp: v('oc') });
+}
+function changePw() {
+  call('PATCH', '/api/auth/change-password',
+       { currentPassword: v('cp'), newPassword: v('np') }, true);
+}
+
+checkRules(v('rp'));
+checkRules(v('np'), 'rules2');
+</script>
+</body>
+</html>
