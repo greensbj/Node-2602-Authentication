@@ -34,6 +34,16 @@ app.get('/api/health', (req, res) =>
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 
+// --- Single-page app fallback ----------------------------------------------
+// A reset link points at /reset-password/<token>, which is a front-end route,
+// not a file. Serve the app for any non-API GET so the browser can handle it.
+app.get(/^\/(?!api\/).*/, (req, res, next) => {
+  if (req.accepts('html')) {
+    return res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+  }
+  return next();
+});
+
 // --- Errors ----------------------------------------------------------------
 app.use(notFound);
 app.use(errorHandler);

@@ -1,222 +1,323 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Authentication demo — Node.js, Express and MongoDB.">
+<meta name="color-scheme" content="light dark">
 <title>Node 2602 Exam on Authentication</title>
-<style>
-  :root { --ink:#15171B; --muted:#5E5F5C; --line:#DCDCD7; --bg:#F4F4F1; --accent:#2F6F8F;
-          --ok:#2E6B4F; --bad:#A3352F; }
-  * { box-sizing: border-box; }
-  body { margin:0; padding:32px 16px; background:var(--bg); color:var(--ink);
-         font:14px/1.6 ui-sans-serif, system-ui, -apple-system, sans-serif; }
-  .wrap { max-width:880px; margin:0 auto; }
-  h1 { font-size:22px; font-weight:600; margin:0 0 4px; }
-  p.sub { color:var(--muted); margin:0 0 24px; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px; }
-  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; }
-  h2 { font-size:14px; font-weight:600; margin:0 0 4px; }
-  .card > p.note { font-size:12px; color:var(--muted); margin:0 0 6px; }
-  label { display:block; font-size:12px; color:var(--muted); margin:12px 0 4px; font-weight:500; }
-  input { width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:7px;
-          font:inherit; background:#fff; color:var(--ink); }
-  input:focus { outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent); }
-  .hint { display:block; font-size:11.5px; color:var(--muted); margin-top:5px; line-height:1.5; }
-  .hint code { background:#F1F0EC; padding:1px 4px; border-radius:3px; font-size:11px; }
-  ul.rules { margin:5px 0 0; padding-left:0; list-style:none; font-size:11.5px; color:var(--muted); }
-  ul.rules li { padding-left:16px; position:relative; line-height:1.6; }
-  ul.rules li::before { content:"○"; position:absolute; left:0; }
-  ul.rules li.met { color:var(--ok); }
-  ul.rules li.met::before { content:"●"; }
-  button { margin-top:16px; width:100%; padding:10px; border:0; border-radius:7px;
-           background:var(--accent); color:#fff; font:inherit; font-weight:500; cursor:pointer; }
-  button.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); margin-top:8px; }
-  button:hover { opacity:.9; }
-  .row { display:flex; gap:8px; }
-  pre { background:#15171B; color:#E8E8E3; padding:14px; border-radius:10px;
-        overflow:auto; max-height:340px; font-size:12px; margin:16px 0 0; }
-  .token { font-size:11px; color:var(--muted); word-break:break-all; margin-top:12px;
-           padding-top:10px; border-top:1px solid var(--line); }
-</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-<div class="wrap">
-  <h1>Node 2602 Exam on Authentication</h1>
-  <p class="sub">A minimal front end for the endpoints. The access token is kept in memory; the refresh token lives in an httpOnly cookie.</p>
+<a class="skip" href="#main">Skip to content</a>
 
-  <div class="grid">
-    <div class="card">
-      <h2>Register</h2>
-      <p class="note">POST <code>/api/auth/register</code> — rate limited to 20 per 15 min</p>
-
-      <label for="rn">Name</label>
-      <input id="rn" value="Test User" autocomplete="name" placeholder="Your full name">
-      <span class="hint">2 to 60 characters. Leading and trailing spaces are trimmed.</span>
-
-      <label for="re">Email</label>
-      <input id="re" type="email" value="test@example.com" autocomplete="email" placeholder="you@example.com">
-      <span class="hint">Must be a valid address and not already registered. Stored lowercase — <code>You@Ex.com</code> and <code>you@ex.com</code> are the same account.</span>
-
-      <label for="rp">Password</label>
-      <input id="rp" type="password" value="Passw0rd123" autocomplete="new-password" placeholder="At least 8 characters" oninput="checkRules(this.value)">
-      <ul class="rules" id="rules">
-        <li data-rule="len">At least 8 characters</li>
-        <li data-rule="lower">One lowercase letter</li>
-        <li data-rule="upper">One uppercase letter</li>
-        <li data-rule="digit">One number</li>
-      </ul>
-      <span class="hint">Hashed with bcrypt before it is stored. It is never returned by any endpoint.</span>
-
-      <button onclick="register()">Register</button>
+<div class="shell">
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">N</span>
+      <span class="brand-text">Node 2602 — Authentication</span>
     </div>
+    <div class="spacer"></div>
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="Switch to dark theme">
+      <span id="themeIcon" aria-hidden="true">◐</span>
+    </button>
+  </header>
 
-    <div class="card">
-      <h2>Login</h2>
-      <p class="note">POST <code>/api/auth/login</code></p>
+  <main class="main" id="main">
 
-      <label for="le">Email</label>
-      <input id="le" type="email" value="test@example.com" autocomplete="email" placeholder="you@example.com">
-      <span class="hint">An unknown email returns the same error as a wrong password, so the API cannot be used to discover who has an account.</span>
+    <!-- Boot ---------------------------------------------------- -->
+    <section class="boot" id="view-boot">
+      <div class="spinner"></div>
+      <p>Restoring your session…</p>
+    </section>
 
-      <label for="lp">Password</label>
-      <input id="lp" type="password" value="Passw0rd123" autocomplete="current-password" placeholder="Your password">
-      <span class="hint">5 wrong attempts locks the account. The lock clears after <code>LOCK_TIME_MS</code> in <code>.env</code> — set to 5 seconds here so it can be demonstrated; 15 minutes in production.</span>
-
-      <button onclick="login()">Log in</button>
-    </div>
-
-    <div class="card">
-      <h2>Session</h2>
-      <p class="note">No input needed — these use the token held in memory.</p>
-
-      <div class="row">
-        <button class="ghost" onclick="call('GET','/api/auth/me',null,true)">Get me</button>
-        <button class="ghost" onclick="call('POST','/api/auth/refresh')">Refresh</button>
+    <!-- Login --------------------------------------------------- -->
+    <section class="card" id="view-login" hidden>
+      <div class="card-head">
+        <h1>Welcome back</h1>
+        <p>Sign in to continue to your account.</p>
       </div>
-      <span class="hint"><b>Get me</b> sends the access token in an <code>Authorization: Bearer</code> header. <b>Refresh</b> sends no token at all — it uses the httpOnly cookie, and rotates it.</span>
+      <form id="loginForm" novalidate>
+        <div class="field" data-field="email">
+          <label for="login-email">Email address</label>
+          <div class="control">
+            <input id="login-email" name="email" type="email" autocomplete="email"
+                   placeholder="you@example.com" required aria-describedby="login-email-err">
+          </div>
+          <span class="err" id="login-email-err" role="alert"></span>
+        </div>
 
-      <div class="row">
-        <button class="ghost" onclick="call('GET','/api/users',null,true)">List users (admin)</button>
-        <button class="ghost" onclick="logout()">Log out</button>
+        <div class="field" data-field="password">
+          <div class="row-between">
+            <label for="login-password">Password</label>
+            <button type="button" class="btn link" data-go="#/forgot">Forgot password?</button>
+          </div>
+          <div class="control has-toggle">
+            <input id="login-password" name="password" type="password" autocomplete="current-password"
+                   placeholder="Your password" required aria-describedby="login-password-err">
+            <button type="button" class="toggle-pw" data-toggle="login-password" aria-pressed="false">Show</button>
+          </div>
+          <span class="err" id="login-password-err" role="alert"></span>
+        </div>
+
+        <div class="actions">
+          <button class="btn" type="submit" id="loginBtn">
+            <span class="spinner" aria-hidden="true"></span>
+            <span class="btn-text">Sign in</span>
+          </button>
+        </div>
+      </form>
+      <p class="alt">New here? <button class="btn link" type="button" data-go="#/register">Create an account</button></p>
+    </section>
+
+    <!-- Register ------------------------------------------------ -->
+    <section class="card" id="view-register" hidden>
+      <div class="card-head">
+        <h1>Create your account</h1>
+        <p>It takes less than a minute.</p>
       </div>
-      <span class="hint"><b>List users</b> returns 403 unless your role is <code>admin</code>. To promote yourself:<br>
-        <code>db.users.updateOne({email:"test@example.com"},{$set:{role:"admin"}})</code></span>
+      <form id="registerForm" novalidate>
+        <div class="field" data-field="name">
+          <label for="reg-name">Full name</label>
+          <div class="control">
+            <input id="reg-name" name="name" type="text" autocomplete="name"
+                   placeholder="Your name" required aria-describedby="reg-name-err reg-name-hint">
+          </div>
+          <span class="hint" id="reg-name-hint">Between 2 and 60 characters.</span>
+          <span class="err" id="reg-name-err" role="alert"></span>
+        </div>
 
-      <div class="token" id="tok">No access token</div>
-    </div>
+        <div class="field" data-field="email">
+          <label for="reg-email">Email address</label>
+          <div class="control">
+            <input id="reg-email" name="email" type="email" autocomplete="email"
+                   placeholder="you@example.com" required aria-describedby="reg-email-err reg-email-hint">
+          </div>
+          <span class="hint" id="reg-email-hint">We send a 6-digit code here to confirm it is yours.</span>
+          <span class="err" id="reg-email-err" role="alert"></span>
+        </div>
 
-    <div class="card">
-      <h2>OTP verification</h2>
-      <p class="note">POST <code>/api/auth/send-otp</code> then <code>/api/auth/verify-otp</code></p>
+        <div class="field" data-field="password">
+          <label for="reg-password">Password</label>
+          <div class="control has-toggle">
+            <input id="reg-password" name="password" type="password" autocomplete="new-password"
+                   placeholder="At least 8 characters" required
+                   aria-describedby="reg-password-err reg-rules">
+            <button type="button" class="toggle-pw" data-toggle="reg-password" aria-pressed="false">Show</button>
+          </div>
+          <div class="meter" id="reg-meter" data-score="0" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <span class="meter-label" id="reg-meter-label" aria-live="polite">Password strength: enter a password</span>
+          <ul class="rules" id="reg-rules">
+            <li data-rule="len">At least 8 characters</li>
+            <li data-rule="lower">One lowercase letter</li>
+            <li data-rule="upper">One uppercase letter</li>
+            <li data-rule="digit">One number</li>
+          </ul>
+          <span class="err" id="reg-password-err" role="alert"></span>
+        </div>
 
-      <label for="oe">Email</label>
-      <input id="oe" type="email" value="test@example.com" autocomplete="email" placeholder="you@example.com">
-      <span class="hint">Must be a registered, not-yet-verified account. Sending to an unknown email returns the same success message, so the endpoint cannot be used to find out who has signed up.</span>
+        <div class="actions">
+          <button class="btn" type="submit" id="registerBtn">
+            <span class="spinner" aria-hidden="true"></span>
+            <span class="btn-text">Create account</span>
+          </button>
+        </div>
+      </form>
+      <p class="alt">Already registered? <button class="btn link" type="button" data-go="#/login">Sign in</button></p>
+    </section>
 
-      <button class="ghost" onclick="sendOtp()">Send code</button>
-      <span class="hint">One code per 60 seconds. In development the code is returned in the response and printed to the server console; in production it would only be emailed.</span>
+    <!-- OTP ----------------------------------------------------- -->
+    <section class="card" id="view-verify" hidden>
+      <div class="card-head">
+        <h1>Check your email</h1>
+        <p>We sent a 6-digit code to <strong id="verify-email">your inbox</strong>. It expires in 5 minutes.</p>
+      </div>
+      <form id="verifyForm" novalidate>
+        <div class="field" data-field="otp">
+          <label for="otp-0" id="otp-label">Verification code</label>
+          <div class="otp" role="group" aria-labelledby="otp-label">
+            <input id="otp-0" inputmode="numeric" autocomplete="one-time-code" maxlength="1" aria-label="Digit 1">
+            <input id="otp-1" inputmode="numeric" maxlength="1" aria-label="Digit 2">
+            <input id="otp-2" inputmode="numeric" maxlength="1" aria-label="Digit 3">
+            <input id="otp-3" inputmode="numeric" maxlength="1" aria-label="Digit 4">
+            <input id="otp-4" inputmode="numeric" maxlength="1" aria-label="Digit 5">
+            <input id="otp-5" inputmode="numeric" maxlength="1" aria-label="Digit 6">
+          </div>
+          <span class="hint">Paste the whole code and it will fill every box.</span>
+          <span class="err" id="otp-err" role="alert"></span>
+        </div>
 
-      <label for="oc">6-digit code</label>
-      <input id="oc" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" autocomplete="one-time-code">
-      <span class="hint">Digits only, 4 to 8 characters. Expires 5 minutes after it is sent, and 5 wrong guesses destroy the code so a new one must be requested.</span>
+        <div class="actions">
+          <button class="btn" type="submit" id="verifyBtn">
+            <span class="spinner" aria-hidden="true"></span>
+            <span class="btn-text">Verify email</span>
+          </button>
+        </div>
+      </form>
+      <p class="alt">
+        <button class="btn link" type="button" id="resendBtn">Resend code</button>
+        <span id="resendTimer" class="countdown"></span>
+      </p>
+      <p class="alt"><button class="btn link" type="button" data-go="#/dashboard">Skip for now</button></p>
+    </section>
 
-      <button onclick="verifyOtp()">Verify code</button>
-    </div>
+    <!-- Forgot -------------------------------------------------- -->
+    <section class="card" id="view-forgot" hidden>
+      <div class="card-head">
+        <h1>Reset your password</h1>
+        <p>Enter your email and we will send a reset link.</p>
+      </div>
+      <form id="forgotForm" novalidate>
+        <div class="field" data-field="email">
+          <label for="forgot-email">Email address</label>
+          <div class="control">
+            <input id="forgot-email" name="email" type="email" autocomplete="email"
+                   placeholder="you@example.com" required aria-describedby="forgot-email-err">
+          </div>
+          <span class="err" id="forgot-email-err" role="alert"></span>
+        </div>
+        <div class="actions">
+          <button class="btn" type="submit" id="forgotBtn">
+            <span class="spinner" aria-hidden="true"></span>
+            <span class="btn-text">Send reset link</span>
+          </button>
+        </div>
+      </form>
+      <p class="alt"><button class="btn link" type="button" data-go="#/login">Back to sign in</button></p>
+    </section>
 
-    <div class="card">
-      <h2>Change password</h2>
-      <p class="note">PATCH <code>/api/auth/change-password</code> — needs a valid access token</p>
+    <!-- Reset --------------------------------------------------- -->
+    <section class="card" id="view-reset" hidden>
+      <div class="card-head">
+        <h1>Choose a new password</h1>
+        <p>Every signed-in device will be logged out.</p>
+      </div>
+      <form id="resetForm" novalidate>
+        <div class="field" data-field="password">
+          <label for="reset-password">New password</label>
+          <div class="control has-toggle">
+            <input id="reset-password" name="password" type="password" autocomplete="new-password"
+                   placeholder="At least 8 characters" required aria-describedby="reset-password-err reset-rules">
+            <button type="button" class="toggle-pw" data-toggle="reset-password" aria-pressed="false">Show</button>
+          </div>
+          <div class="meter" id="reset-meter" data-score="0" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <span class="meter-label" id="reset-meter-label" aria-live="polite">Password strength: enter a password</span>
+          <ul class="rules" id="reset-rules">
+            <li data-rule="len">At least 8 characters</li>
+            <li data-rule="lower">One lowercase letter</li>
+            <li data-rule="upper">One uppercase letter</li>
+            <li data-rule="digit">One number</li>
+          </ul>
+          <span class="err" id="reset-password-err" role="alert"></span>
+        </div>
+        <div class="actions">
+          <button class="btn" type="submit" id="resetBtn">
+            <span class="spinner" aria-hidden="true"></span>
+            <span class="btn-text">Set new password</span>
+          </button>
+        </div>
+      </form>
+      <p class="alt"><button class="btn link" type="button" data-go="#/login">Back to sign in</button></p>
+    </section>
 
-      <label for="cp">Current password</label>
-      <input id="cp" type="password" value="Passw0rd123" autocomplete="current-password" placeholder="Your current password">
-      <span class="hint">Checked with bcrypt before anything changes. Wrong value returns 401.</span>
+    <!-- Dashboard ----------------------------------------------- -->
+    <section class="dash" id="view-dashboard" hidden>
+      <div class="panel">
+        <div class="profile">
+          <div class="avatar" id="dash-avatar" aria-hidden="true">?</div>
+          <div class="profile-meta">
+            <div class="name" id="dash-name">—</div>
+            <div class="email" id="dash-email">—</div>
+            <div class="badges" id="dash-badges"></div>
+          </div>
+          <button class="btn secondary small" type="button" id="logoutBtn">Sign out</button>
+        </div>
+        <div id="verify-nudge" hidden>
+          <p class="sub" style="margin-top:16px">
+            Your email is not verified yet.
+            <button class="btn link" type="button" data-go="#/verify">Verify it now</button>
+          </p>
+        </div>
+      </div>
 
-      <label for="np">New password</label>
-      <input id="np" type="password" value="NewPassw0rd1" autocomplete="new-password" placeholder="At least 8 characters" oninput="checkRules(this.value,'rules2')">
-      <ul class="rules" id="rules2">
-        <li data-rule="len">At least 8 characters</li>
-        <li data-rule="lower">One lowercase letter</li>
-        <li data-rule="upper">One uppercase letter</li>
-        <li data-rule="digit">One number</li>
-      </ul>
-      <span class="hint">Must differ from the current one. On success every session ends — including this one — so you will need to log in again.</span>
+      <div class="panel">
+        <h2>Session</h2>
+        <p class="sub">The access token lives in memory only. The refresh token is in an httpOnly cookie your JavaScript cannot read.</p>
+        <div class="btn-grid">
+          <button class="btn secondary" type="button" id="meBtn">Reload profile</button>
+          <button class="btn secondary" type="button" id="refreshBtn">Refresh token</button>
+          <button class="btn secondary" type="button" id="usersBtn">List users (admin)</button>
+          <button class="btn danger" type="button" id="logoutAllBtn">Sign out everywhere</button>
+        </div>
+        <div id="usersWrap" hidden>
+          <div class="table-wrap">
+            <table>
+              <caption class="sr-only">All registered users</caption>
+              <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col">Verified</th></tr></thead>
+              <tbody id="usersBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <details class="raw">
+          <summary>Last API response</summary>
+          <pre id="raw">Nothing yet.</pre>
+        </details>
+      </div>
 
-      <button onclick="changePw()">Change</button>
-    </div>
-  </div>
+      <div class="panel">
+        <h2>Change password</h2>
+        <p class="sub">You will be signed out of every device, including this one.</p>
+        <form id="changeForm" novalidate>
+          <div class="field" data-field="currentPassword">
+            <label for="cur-password">Current password</label>
+            <div class="control has-toggle">
+              <input id="cur-password" name="currentPassword" type="password" autocomplete="current-password"
+                     required aria-describedby="cur-password-err">
+              <button type="button" class="toggle-pw" data-toggle="cur-password" aria-pressed="false">Show</button>
+            </div>
+            <span class="err" id="cur-password-err" role="alert"></span>
+          </div>
+          <div class="field" data-field="newPassword">
+            <label for="new-password">New password</label>
+            <div class="control has-toggle">
+              <input id="new-password" name="newPassword" type="password" autocomplete="new-password"
+                     required aria-describedby="new-password-err new-rules">
+              <button type="button" class="toggle-pw" data-toggle="new-password" aria-pressed="false">Show</button>
+            </div>
+            <div class="meter" id="new-meter" data-score="0" aria-hidden="true">
+              <span></span><span></span><span></span><span></span>
+            </div>
+            <span class="meter-label" id="new-meter-label" aria-live="polite">Password strength: enter a password</span>
+            <ul class="rules" id="new-rules">
+              <li data-rule="len">At least 8 characters</li>
+              <li data-rule="lower">One lowercase letter</li>
+              <li data-rule="upper">One uppercase letter</li>
+              <li data-rule="digit">One number</li>
+            </ul>
+            <span class="err" id="new-password-err" role="alert"></span>
+          </div>
+          <div class="actions">
+            <button class="btn" type="submit" id="changeBtn">
+              <span class="spinner" aria-hidden="true"></span>
+              <span class="btn-text">Change password</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
 
-  <pre id="out">Responses appear here.</pre>
+  </main>
 </div>
 
-<script>
-let accessToken = null;
+<div class="toasts" id="toasts" role="status" aria-live="polite" aria-atomic="false"></div>
 
-function checkRules(value, id = 'rules') {
-  const tests = {
-    len: value.length >= 8,
-    lower: /[a-z]/.test(value),
-    upper: /[A-Z]/.test(value),
-    digit: /\d/.test(value),
-  };
-  document.querySelectorAll(`#${id} li`).forEach((li) => {
-    li.classList.toggle('met', tests[li.dataset.rule]);
-  });
-}
-
-function show(data) {
-  document.getElementById('out').textContent = JSON.stringify(data, null, 2);
-}
-function setToken(t) {
-  accessToken = t;
-  document.getElementById('tok').textContent = t ? 'Access token: ' + t : 'No access token';
-}
-
-async function call(method, url, body, auth) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (auth && accessToken) headers.Authorization = 'Bearer ' + accessToken;
-  try {
-    const res = await fetch(url, {
-      method,
-      headers,
-      credentials: 'include',
-      body: body ? JSON.stringify(body) : undefined
-    });
-    const json = await res.json();
-    show({ status: res.status, ...json });
-    if (json?.data?.accessToken) setToken(json.data.accessToken);
-    return json;
-  } catch (err) {
-    show({ error: err.message });
-  }
-}
-
-const v = id => document.getElementById(id).value;
-
-function register() {
-  call('POST', '/api/auth/register', { name: v('rn'), email: v('re'), password: v('rp') });
-}
-function login() {
-  call('POST', '/api/auth/login', { email: v('le'), password: v('lp') });
-}
-async function logout() {
-  await call('POST', '/api/auth/logout');
-  setToken(null);
-}
-async function sendOtp() {
-  const json = await call('POST', '/api/auth/send-otp', { email: v('oe') });
-  // Development convenience: drop the returned code straight into the box.
-  if (json?.data?.otp) document.getElementById('oc').value = json.data.otp;
-}
-function verifyOtp() {
-  call('POST', '/api/auth/verify-otp', { email: v('oe'), otp: v('oc') });
-}
-function changePw() {
-  call('PATCH', '/api/auth/change-password',
-       { currentPassword: v('cp'), newPassword: v('np') }, true);
-}
-
-checkRules(v('rp'));
-checkRules(v('np'), 'rules2');
-</script>
+<script src="/app.js"></script>
 </body>
 </html>
